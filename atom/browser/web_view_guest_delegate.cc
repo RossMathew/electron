@@ -10,6 +10,7 @@
 #include "content/public/browser/guest_host.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -26,7 +27,8 @@ const int kDefaultHeight = 300;
 SetSizeParams::SetSizeParams() = default;
 SetSizeParams::~SetSizeParams() = default;
 
-WebViewGuestDelegate::WebViewGuestDelegate() {}
+WebViewGuestDelegate::WebViewGuestDelegate(content::WebContents* embedder)
+    : embedder_web_contents_(embedder) {}
 
 WebViewGuestDelegate::~WebViewGuestDelegate() {}
 
@@ -137,12 +139,32 @@ void WebViewGuestDelegate::SetGuestHost(content::GuestHost* guest_host) {
 
 void WebViewGuestDelegate::WillAttach(
     content::WebContents* embedder_web_contents,
-    int element_instance_id,
+    int embedder_frame_id,
     bool is_full_page_plugin,
     const base::Closure& completion_callback) {
   embedder_web_contents_ = embedder_web_contents;
   is_full_page_plugin_ = is_full_page_plugin;
-  completion_callback.Run();
+
+  int embedder_process_id =
+      embedder_web_contents_->GetMainFrame()->GetProcess()->GetID();
+  auto* embedder_frame =
+      content::RenderFrameHost::FromID(embedder_process_id, embedder_frame_id);
+  // If we're creating a new guest through window.open /
+  // RenderViewImpl::CreateView, the embedder may not be the same as
+  // the original creator/owner, so update embedder_web_contents here.
+  embedder_web_contents_ =
+      content::WebContents::FromRenderFrameHost(embedder_frame);
+
+  // Attach this inner WebContents |guest_web_contents| to the outer
+  // WebContents |embedder_web_contents|. The outer WebContents's
+  // frame |embedder_frame| hosts the inner WebContents.
+  web_contents()->AttachToOuterWebContentsFrame(embedder_web_contents_,
+                                                embedder_frame);
+
+  if (!completion_callback.is_null())
+    completion_callback.Run();
+
+  DidAttach(0);
 }
 
 void WebViewGuestDelegate::OnZoomLevelChanged(
@@ -185,10 +207,6 @@ void WebViewGuestDelegate::ResetZoomController() {
     embedder_zoom_controller_->RemoveObserver(this);
     embedder_zoom_controller_ = nullptr;
   }
-}
-
-bool WebViewGuestDelegate::CanBeEmbeddedInsideCrossProcessFrames() {
-  return true;
 }
 
 content::RenderWidgetHost* WebViewGuestDelegate::GetOwnerRenderWidgetHost() {

@@ -35,7 +35,7 @@ class WebViewGuestDelegate : public content::BrowserPluginGuestDelegate,
                              public content::WebContentsObserver,
                              public WebContentsZoomController::Observer {
  public:
-  WebViewGuestDelegate();
+  explicit WebViewGuestDelegate(content::WebContents* embedder);
   ~WebViewGuestDelegate() override;
 
   void Initialize(api::WebContents* api_web_contents);
@@ -53,7 +53,6 @@ class WebViewGuestDelegate : public content::BrowserPluginGuestDelegate,
   // Return true if attached.
   bool IsAttached() const { return attached_; }
 
- protected:
   // content::WebContentsObserver:
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
@@ -67,7 +66,6 @@ class WebViewGuestDelegate : public content::BrowserPluginGuestDelegate,
                   int element_instance_id,
                   bool is_full_page_plugin,
                   const base::Closure& completion_callback) final;
-  bool CanBeEmbeddedInsideCrossProcessFrames() override;
   content::RenderWidgetHost* GetOwnerRenderWidgetHost() override;
   content::SiteInstance* GetOwnerSiteInstance() override;
   content::WebContents* CreateNewGuestWindow(

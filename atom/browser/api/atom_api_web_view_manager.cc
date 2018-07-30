@@ -10,6 +10,7 @@
 #include "atom/common/options_switches.h"
 #include "content/public/browser/browser_context.h"
 #include "native_mate/dictionary.h"
+
 // Must be the last in the includes list.
 // See https://github.com/electron/electron/issues/10363
 #include "atom/common/node_includes.h"
@@ -18,14 +19,15 @@ using atom::WebContentsPreferences;
 
 namespace {
 
-void AddGuest(int guest_instance_id,
+void AddGuest(int embedder_frame_id,
+              int guest_instance_id,
               int element_instance_id,
-              content::WebContents* embedder,
+              content::WebContents* owner,
               content::WebContents* guest_web_contents,
               const base::DictionaryValue& options) {
-  auto* manager = atom::WebViewManager::GetWebViewManager(embedder);
+  auto* manager = atom::WebViewManager::GetWebViewManager(owner);
   if (manager)
-    manager->AddGuest(guest_instance_id, element_instance_id, embedder,
+    manager->AddGuest(guest_instance_id, element_instance_id, owner,
                       guest_web_contents);
 
   double zoom_factor;
@@ -37,8 +39,8 @@ void AddGuest(int guest_instance_id,
   WebContentsPreferences::From(guest_web_contents)->Merge(options);
 }
 
-void RemoveGuest(content::WebContents* embedder, int guest_instance_id) {
-  auto* manager = atom::WebViewManager::GetWebViewManager(embedder);
+void RemoveGuest(content::WebContents* owner, int guest_instance_id) {
+  auto* manager = atom::WebViewManager::GetWebViewManager(owner);
   if (manager)
     manager->RemoveGuest(guest_instance_id);
 }
